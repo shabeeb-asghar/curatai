@@ -64,7 +64,7 @@ export default function Login() {
       });
       if (response.success) {
         console.log("Login successful:", response.data);
-        navigate("/dashboard");
+        navigate("/projects");
       } else {
         setErrors((prev) => ({
           ...prev,
