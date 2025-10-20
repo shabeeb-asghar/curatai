@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Camera, Eye, EyeOff, Check } from "lucide-react";
 import loginBg from "@/assets/login-bg.jpg";
-import { login, googleOnSuccess } from "@/functions/auth";
+import { login, googleLogin } from "@/functions/auth";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 interface LoginResponse {
@@ -35,6 +35,7 @@ export default function Login() {
     password: "",
   });
   const [errors, setErrors] = useState({ email: null, general: null });
+  const [successMessage, setSuccessMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -48,6 +49,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({ email: null, general: null });
+    setSuccessMessage(null);
 
     // Validate email
     if (!isValidEmail(formData.email)) {
@@ -55,7 +57,7 @@ export default function Login() {
       return;
     }
 
-    setIsLoading(true); // Disable button by setting loading state
+    setIsLoading(true);
 
     try {
       const response = await login({
@@ -66,34 +68,44 @@ export default function Login() {
         console.log("Login successful:", response.data);
         navigate("/projects");
       } else {
-        setErrors((prev) => ({
-          ...prev,
-          general: response.message || "Invalid email or password",
-        }));
+        if (response.message?.includes("Email not verified")) {
+          setSuccessMessage("Please verify your email to continue. Check your inbox for a verification link.");
+        } else if (response.message?.includes("Email not found")) {
+          setErrors((prev) => ({
+            ...prev,
+            email: "This email is not registered. Please sign up or try a different email.",
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            general: response.message || "Invalid email or password",
+          }));
+        }
       }
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        general: "Invalid email or password",
+        general: "An unexpected error occurred during login",
       }));
       console.error("Unexpected error during login:", error);
     } finally {
-      setIsLoading(false); // Re-enable button after request completes
+      setIsLoading(false);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear field-specific error when user starts typing
     if (field === "email") {
       setErrors((prev) => ({ ...prev, email: null }));
+    }
+    if (field === "password") {
+      setErrors((prev) => ({ ...prev, general: null }));
     }
   };
 
   return (
     <GoogleOAuthProvider clientId={clientId || ""}>
       <div className="min-h-screen grid lg:grid-cols-2">
-        {/* Left side - Background */}
         <div
           className="hidden lg:flex items-center justify-center bg-cover bg-center relative"
           style={{ backgroundImage: `url(${loginBg})` }}
@@ -107,7 +119,6 @@ export default function Login() {
             <p className="text-xl text-white/90 max-w-md mb-8">
               Join thousands of photographers who trust CuratAI to organize their best shots.
             </p>
-            {/* Benefits list */}
             <div className="text-left space-y-3">
               <div className="flex items-center space-x-3">
                 <Check className="w-5 h-5 text-green-400" />
@@ -125,10 +136,8 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right side - Form */}
         <div className="flex items-center justify-center p-8 bg-surface-gradient">
           <div className="w-full max-w-md">
-            {/* Mobile Logo */}
             <div className="lg:hidden flex items-center justify-center mb-8">
               <Link to="/" className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-hero-gradient rounded-lg flex items-center justify-center">
@@ -146,12 +155,24 @@ export default function Login() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Social Login */}
+                {successMessage && (
+                  <div className="text-green-500 text-sm text-center">{successMessage}</div>
+                )}
+                {errors.general && (
+                  <div className="text-red-500 text-sm text-center">{errors.general}</div>
+                )}
                 <div className="flex justify-center">
                   {clientId ? (
                     <GoogleLogin
-                      onSuccess={(credentialResponse) => googleOnSuccess(credentialResponse, setErrors)}
-                      onError={() => setErrors((prev) => ({ ...prev, general: "Google Login Failed: Access may be restricted" }))}
+                      onSuccess={(credentialResponse) =>
+                        googleLogin(credentialResponse, setErrors, setSuccessMessage, navigate)
+                      }
+                      onError={() =>
+                        setErrors((prev) => ({
+                          ...prev,
+                          general: "Google Login Failed: Access may be restricted",
+                        }))
+                      }
                       theme="outline"
                       size="large"
                       text="signin_with"
@@ -159,8 +180,8 @@ export default function Login() {
                       width="100%"
                     />
                   ) : (
-                    <p className="text-red-500 text-sm text-center">
-                      Google Login is unavailable due to configuration issues.
+                    <p className="text-yellow-500 text-sm text-center">
+                      Google Login is currently unavailable. Please use email login.
                     </p>
                   )}
                 </div>
@@ -168,11 +189,12 @@ export default function Login() {
                 <div className="relative">
                   <Separator />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="bg-card px-3 text-xs text-muted-foreground">OR CONTINUE WITH EMAIL</span>
+                    <span className="bg-card px-3 text-xs text-muted-foreground">
+                      OR CONTINUE WITH EMAIL
+                    </span>
                   </div>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email address</Label>
@@ -185,9 +207,7 @@ export default function Login() {
                       required
                     />
                     {errors.email && (
-                      <div className="text-red-500 text-sm">
-                        {errors.email}
-                      </div>
+                      <div className="text-red-500 text-sm">{errors.email}</div>
                     )}
                   </div>
 
@@ -210,11 +230,6 @@ export default function Login() {
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    {errors.general && (
-                      <div className="text-red-500 text-sm">
-                        {errors.general}
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex items-center justify-between">

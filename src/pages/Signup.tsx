@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Camera, Eye, EyeOff, Check } from "lucide-react";
 import loginBg from "@/assets/login-bg.jpg";
-import { signup, googleOnSuccess } from "@/functions/auth";
+import { signup, googleSignup } from "@/functions/auth";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 
 export default function Signup() {
@@ -24,7 +24,6 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  console.log('Google Client ID:', clientId);
 
   // Email validation regex
   const isValidEmail = (email) => {
@@ -32,7 +31,7 @@ export default function Signup() {
     return emailRegex.test(email);
   };
 
-  // Password validation: at least 8 characters, one uppercase, one lowercase, one special character
+  // Password validation
   const isValidPassword = (password) => {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,}$/;
     return passwordRegex.test(password);
@@ -43,22 +42,21 @@ export default function Signup() {
     setErrors({ email: null, password: null, general: null });
     setSuccessMessage(null);
 
-    // Validate email
     if (!isValidEmail(formData.email)) {
       setErrors((prev) => ({ ...prev, email: "Please enter a valid email address" }));
       return;
     }
 
-    // Validate password
     if (!isValidPassword(formData.password)) {
       setErrors((prev) => ({
         ...prev,
-        password: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one special character",
+        password:
+          "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one special character",
       }));
       return;
     }
 
-    setIsLoading(true); // Disable button by setting loading state
+    setIsLoading(true);
 
     try {
       const signupResponse = await signup({
@@ -67,38 +65,44 @@ export default function Signup() {
         password: formData.password,
       });
       if (signupResponse.success) {
-        console.log('Signup successful:', signupResponse.data);
-        setSuccessMessage("A confirmation email has been sent to your email address. Please verify your email to continue.");
+        console.log("Signup successful:", signupResponse.data);
+        setSuccessMessage(signupResponse.data?.message || "A confirmation email has been sent to your email address. Please verify your email to continue.");
+        setTimeout(() => navigate("/login"), 3000); // Redirect to login after 3 seconds
       } else {
-        setErrors((prev) => ({
-          ...prev,
-          general: signupResponse?.detail?.message || signupResponse.message || 'Signup failed',
-        }));
+        if (signupResponse.message?.includes("Email already exists")) {
+          setErrors((prev) => ({
+            ...prev,
+            email: "This email is already registered. Please use a different email or sign in.",
+          }));
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            general: signupResponse.message || "Signup failed",
+          }));
+        }
       }
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        general: error?.detail?.message || 'An unexpected error occurred during signup',
+        general: error?.message || "An unexpected error occurred during signup",
       }));
-      console.error('Unexpected error during signup:', error);
+      console.error("Unexpected error during signup:", error);
     } finally {
-      setIsLoading(false); // Re-enable button after request completes
+      setIsLoading(false);
     }
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear field-specific error when user starts typing
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (field === "email" || field === "password") {
       setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
   return (
-    <GoogleOAuthProvider clientId={clientId || ''}>
+    <GoogleOAuthProvider clientId={clientId || ""}>
       <div className="min-h-screen grid lg:grid-cols-2">
-        {/* Left side - Background */}
-        <div 
+        <div
           className="hidden lg:flex items-center justify-center bg-cover bg-center relative"
           style={{ backgroundImage: `url(${loginBg})` }}
         >
@@ -111,8 +115,6 @@ export default function Signup() {
             <p className="text-xl text-white/90 max-w-md mb-8">
               Join thousands of photographers who save hours every week with AI-powered curation.
             </p>
-            
-            {/* Benefits list */}
             <div className="text-left space-y-3">
               <div className="flex items-center space-x-3">
                 <Check className="w-5 h-5 text-green-400" />
@@ -130,10 +132,8 @@ export default function Signup() {
           </div>
         </div>
 
-        {/* Right side - Form */}
         <div className="flex items-center justify-center p-8 bg-surface-gradient">
           <div className="w-full max-w-md">
-            {/* Mobile Logo */}
             <div className="lg:hidden flex items-center justify-center mb-8">
               <Link to="/" className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-hero-gradient rounded-lg flex items-center justify-center">
@@ -152,42 +152,45 @@ export default function Signup() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {successMessage && (
-                  <div className="text-green-500 text-sm text-center">
-                    {successMessage}
-                  </div>
+                  <div className="text-green-500 text-sm text-center">{successMessage}</div>
                 )}
                 {errors.general && (
-                  <div className="text-red-500 text-sm text-center">
-                    {errors.general}
-                  </div>
+                  <div className="text-red-500 text-sm text-center">{errors.general}</div>
                 )}
-                {/* Social Signup */}
-                <div className="flex justify-center">
-                  {clientId ? (
-                    <GoogleLogin
-                      onSuccess={(credentialResponse) => googleOnSuccess(credentialResponse, setErrors)}
-                      onError={() => setErrors((prev) => ({ ...prev, general: 'Google Login Failed: Access may be restricted' }))}
-                      theme="outline"
-                      size="large"
-                      text="signup_with"
-                      shape="rectangular"
-                      width="100%"
-                    />
-                  ) : (
-                    <p className="text-red-500 text-sm text-center">
-                      Google Signup is unavailable due to configuration issues.
-                    </p>
-                  )}
-                </div>
+<div className="flex justify-center">
+  {clientId ? (
+    <GoogleLogin
+      onSuccess={(credentialResponse) =>
+        googleSignup(credentialResponse, setErrors, setSuccessMessage) // Pass setSuccessMessage
+      }
+      onError={() =>
+        setErrors((prev) => ({
+          ...prev,
+          general: 'Google Signup Failed: Access may be restricted',
+        }))
+      }
+      theme="outline"
+      size="large"
+      text="signup_with"
+      shape="rectangular"
+      width="100%"
+    />
+  ) : (
+    <p className="text-yellow-500 text-sm text-center">
+      Google Signup is currently unavailable. Please use email signup.
+    </p>
+  )}
+</div>
 
                 <div className="relative">
                   <Separator />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="bg-card px-3 text-xs text-muted-foreground">OR CONTINUE WITH EMAIL</span>
+                    <span className="bg-card px-3 text-xs text-muted-foreground">
+                      OR CONTINUE WITH EMAIL
+                    </span>
                   </div>
                 </div>
 
-                {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="username">Username</Label>
@@ -211,11 +214,7 @@ export default function Signup() {
                       onChange={(e) => handleInputChange("email", e.target.value)}
                       required
                     />
-                    {errors.email && (
-                      <div className="text-red-500 text-sm">
-                        {errors.email}
-                      </div>
-                    )}
+                    {errors.email && <div className="text-red-500 text-sm">{errors.email}</div>}
                   </div>
 
                   <div className="space-y-2">
@@ -237,17 +236,14 @@ export default function Signup() {
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-         
                     {errors.password && (
-                      <div className="text-red-500 text-sm">
-                        {errors.password}
-                      </div>
+                      <div className="text-red-500 text-sm">{errors.password}</div>
                     )}
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="terms" 
+                    <Checkbox
+                      id="terms"
                       checked={formData.agreeToTerms}
                       onCheckedChange={(checked) => handleInputChange("agreeToTerms", checked)}
                     />
@@ -263,8 +259,8 @@ export default function Signup() {
                     </Label>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full btn-hero"
                     disabled={!formData.agreeToTerms || isLoading}
                   >
