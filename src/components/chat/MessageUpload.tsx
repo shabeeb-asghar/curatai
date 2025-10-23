@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image as ImageType } from '@/functions/api';
+import { Image as ImageType } from '@/functions/projects';
 import { Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ImageGalleryModal } from './ImageGalleryModal';

@@ -1,7 +1,12 @@
+// Updated Projects.tsx
 import { useState } from 'react';
 import { ProjectsSidebar } from '@/components/sidebar/ProjectsSidebar';
-import { MainChatArea } from '@/components/chat/MainChatArea';
 import { toast } from 'sonner';
+import { AllImages } from '@/components/chat/AllImages'; // New component
+import { MainChatArea } from '@/components/chat/MainChatArea'; // Updated
+import { AlbumsView } from '@/components/albums/AlbumsView'; // New component
+import  {Button} from '@/components/ui/button';
+import {NavigationTabs} from '@/components/NavigationTabs';
 
 interface ImageType {
   id: string;
@@ -12,29 +17,12 @@ const Projects = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [isProjectsLoading, setIsProjectsLoading] = useState(false); // New loading state
+  const [isProjectsLoading, setIsProjectsLoading] = useState(false);
+  const [currentTab, setCurrentTab] = useState<'all-images' | 'chat' | 'albums'>('chat');
 
   // Retrieve userId from localStorage
   const userData = JSON.parse(localStorage.getItem("user") || "{}");
   const userId = userData.id || "";
-
-  const handleSearch = async (query: string) => {
-    if (!selectedProjectId) {
-      toast.error('Please select a project first');
-      return;
-    }
-    if (isUploading) {
-      toast.error('Please wait until the upload is complete');
-      return;
-    }
-
-    try {
-      toast.info('Search functionality is not yet implemented');
-    } catch (error) {
-      toast.error('Search failed. Please try again.');
-      toast.info('Search functionality is not yet implemented');
-    }
-  };
 
   const handleUploadProgress = (progress: number) => {
     setUploadProgress(progress);
@@ -90,18 +78,16 @@ const Projects = () => {
         onSelectProject={setSelectedProjectId}
         userId={userId}
         disabled={isUploading}
-        onProjectsLoadingChange={handleProjectsLoadingChange} // Pass callback
+        onProjectsLoadingChange={handleProjectsLoadingChange}
       />
 
-      <div className="flex-1 flex flex-col">
-        <MainChatArea
-          projectId={selectedProjectId}
-          isUploading={isUploading}
-          onUploadStart={handleUploadStart}
-          onUploadProgress={handleUploadProgress}
-          onUploadComplete={handleUploadComplete}
-        />
-      </div>
+      <NavigationTabs
+        selectedProjectId={selectedProjectId}
+        isUploading={isUploading}
+        handleUploadStart={handleUploadStart}
+        handleUploadProgress={handleUploadProgress}
+        handleUploadComplete={handleUploadComplete}
+      />
     </div>
   );
 };
